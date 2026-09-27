@@ -1,0 +1,5 @@
+# Substitua SEU_DOMINIO_AQUI pelo domínio público antes de publicar.
+User-agent: *
+Allow: /
+
+Sitemap: https://SEU_DOMINIO_AQUI/sitemap.xml
