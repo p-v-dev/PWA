@@ -8,6 +8,51 @@ ROOT = Path(__file__).parent.parent
 
 
 class StaticSiteTest(unittest.TestCase):
+    def test_github_pages_workflow_uses_official_artifact_deploy(self):
+        workflow_path = ROOT / ".github" / "workflows" / "deploy-pages.yml"
+
+        self.assertTrue(workflow_path.exists())
+        workflow = workflow_path.read_text(encoding="utf-8")
+        required_content = (
+            "push:",
+            "branches: [main]",
+            "workflow_dispatch:",
+            "contents: read",
+            "pages: write",
+            "id-token: write",
+            "actions/checkout@v4",
+            "actions/setup-node@v4",
+            "node-version: 22",
+            "python -m unittest discover -s tests -v",
+            "node build.mjs",
+            "actions/configure-pages@v5",
+            "actions/upload-pages-artifact@v3",
+            "path: dist",
+            "actions/deploy-pages@v5",
+            "SITE_URL: https://p-v-dev.github.io/PWA/",
+        )
+        for content in required_content:
+            self.assertIn(content, workflow)
+        self.assertIn("build:\n    permissions:\n      contents: read", workflow)
+        self.assertIn(
+            "deploy:\n    permissions:\n      pages: write\n      id-token: write",
+            workflow,
+        )
+        build_section, deploy_section = workflow.split("\n  deploy:", 1)
+        self.assertNotIn("actions/configure-pages@v5", build_section)
+        self.assertIn("actions/configure-pages@v5", deploy_section)
+
+        for variable in (
+            "CONTACT_WHATSAPP_NUMBER",
+            "CONTACT_WHATSAPP_MESSAGE",
+            "CONTACT_INSTAGRAM",
+            "CONTACT_PHONE",
+            "CONTACT_EMAIL",
+            "CONTACT_BUSINESS_HOURS",
+            "CONTACT_MAPS_URL",
+        ):
+            self.assertIn(f"{variable}: ${{{{ vars.{variable} }}}}", workflow)
+
     def test_build_generates_public_contact_config_without_env_file(self):
         env = os.environ | {
             "CONTACT_WHATSAPP_NUMBER": "5512999999999",
@@ -17,6 +62,7 @@ class StaticSiteTest(unittest.TestCase):
             "CONTACT_EMAIL": "contato@example.com",
             "CONTACT_BUSINESS_HOURS": "Segunda a sexta, das 8h às 18h",
             "CONTACT_MAPS_URL": "https://maps.app.goo.gl/example",
+            "SITE_URL": "https://p-v-dev.github.io/PWA/",
         }
 
         result = subprocess.run(
@@ -35,6 +81,10 @@ class StaticSiteTest(unittest.TestCase):
         llms = (ROOT / "dist" / "llms.txt").read_text(encoding="utf-8")
         self.assertIn("https://wa.me/5512999999999", llms)
         self.assertNotIn("INFORMAÇÃO A PREENCHER", llms)
+        for crawler_file in ("robots.txt", "sitemap.xml", "llms.txt"):
+            content = (ROOT / "dist" / crawler_file).read_text(encoding="utf-8")
+            self.assertIn("https://p-v-dev.github.io/PWA/", content)
+            self.assertNotIn("SEU_DOMINIO_AQUI", content)
         self.assertFalse((ROOT / "dist" / ".env").exists())
 
     def test_build_rejects_invalid_contact_values(self):
@@ -42,11 +92,13 @@ class StaticSiteTest(unittest.TestCase):
             "CONTACT_WHATSAPP_NUMBER": "5512999999999",
             "CONTACT_EMAIL": "contato@example.com",
             "CONTACT_MAPS_URL": "https://maps.app.goo.gl/example",
+            "SITE_URL": "https://p-v-dev.github.io/PWA/",
         }
         invalid_values = (
             ("CONTACT_WHATSAPP_NUMBER", "12999999999", "CONTACT_WHATSAPP_NUMBER"),
             ("CONTACT_EMAIL", "email-invalido", "CONTACT_EMAIL"),
             ("CONTACT_MAPS_URL", "http://example.com", "CONTACT_MAPS_URL"),
+            ("SITE_URL", "http://example.com", "SITE_URL"),
         )
 
         for name, value, expected_error in invalid_values:

@@ -12,6 +12,7 @@ const variables = [
   'CONTACT_EMAIL',
   'CONTACT_BUSINESS_HOURS',
   'CONTACT_MAPS_URL',
+  'SITE_URL',
 ];
 
 function parseEnv(source) {
@@ -43,6 +44,7 @@ const env = Object.fromEntries(
 const whatsappNumber = env.CONTACT_WHATSAPP_NUMBER.replace(/\D/g, '');
 const phoneNumber = env.CONTACT_PHONE.replace(/\D/g, '');
 const instagram = env.CONTACT_INSTAGRAM.replace(/^@/, '');
+const siteUrl = (env.SITE_URL || 'https://p-v-dev.github.io/PWA/').replace(/\/+$/, '') + '/';
 
 if (!/^55\d{10,11}$/.test(whatsappNumber)) {
   throw new Error('CONTACT_WHATSAPP_NUMBER deve conter 55, DDD e número, somente com dígitos.');
@@ -53,6 +55,9 @@ if (env.CONTACT_EMAIL && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(env.CONTACT_EMAIL)) 
 if (env.CONTACT_MAPS_URL) {
   const mapsUrl = new URL(env.CONTACT_MAPS_URL);
   if (mapsUrl.protocol !== 'https:') throw new Error('CONTACT_MAPS_URL deve usar HTTPS.');
+}
+if (new URL(siteUrl).protocol !== 'https:') {
+  throw new Error('SITE_URL deve usar HTTPS.');
 }
 
 const message = env.CONTACT_WHATSAPP_MESSAGE || 'Olá, gostaria de solicitar um orçamento.';
@@ -74,9 +79,18 @@ await mkdir(output, { recursive: true });
 for (const entry of ['index.html', 'styles.css', 'script.js', 'assets', 'robots.txt', 'sitemap.xml', 'llms.txt']) {
   await cp(path.join(root, entry), path.join(output, entry), { recursive: true });
 }
-const llmsPath = path.join(output, 'llms.txt');
-const llms = await readFile(llmsPath, 'utf8');
-await writeFile(llmsPath, llms.replace('INFORMAÇÃO A PREENCHER: link oficial do WhatsApp', whatsappUrl));
+for (const filename of ['robots.txt', 'sitemap.xml', 'llms.txt']) {
+  const filePath = path.join(output, filename);
+  const content = await readFile(filePath, 'utf8');
+  await writeFile(
+    filePath,
+    content
+      .replace(/^# Substitua SEU_DOMINIO_AQUI.*\r?\n/gm, '')
+      .replace(/^<!-- Substitua SEU_DOMINIO_AQUI.*-->\r?\n/gm, '')
+      .replaceAll('https://SEU_DOMINIO_AQUI/', siteUrl)
+      .replace('INFORMAÇÃO A PREENCHER: link oficial do WhatsApp', whatsappUrl),
+  );
+}
 await writeFile(
   path.join(output, 'contact-config.js'),
   `window.PWA_CONTACT = ${JSON.stringify(config, null, 2).replaceAll('<', '\\u003c')};\n`,

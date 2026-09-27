@@ -35,4 +35,11 @@ python -m unittest discover -s tests -v
 
 ## GitHub Pages
 
-Publique o conteúdo gerado em `dist/`. Uma pipeline do GitHub Actions poderá executar `node build.mjs` usando variáveis configuradas no repositório. Os arquivos usam caminhos relativos para funcionar em subcaminhos.
+O workflow `.github/workflows/deploy-pages.yml` publica o site em `https://p-v-dev.github.io/PWA/` a cada push na `main` ou por execução manual.
+
+1. Acesse **Settings > Secrets and variables > Actions > Variables**.
+2. Crie as Repository Variables `CONTACT_WHATSAPP_NUMBER`, `CONTACT_WHATSAPP_MESSAGE`, `CONTACT_INSTAGRAM`, `CONTACT_PHONE`, `CONTACT_EMAIL`, `CONTACT_BUSINESS_HOURS` e `CONTACT_MAPS_URL`.
+3. Acesse **Settings > Pages** e selecione **GitHub Actions** em **Source**.
+4. Envie a alteração para a `main` ou execute manualmente o workflow em **Actions > Deploy GitHub Pages**.
+
+Somente `CONTACT_WHATSAPP_NUMBER` é obrigatória. Os demais contatos podem ficar vazios e não aparecerão no site. Esses valores são públicos no site gerado, por isso devem ser Repository Variables, não Secrets.

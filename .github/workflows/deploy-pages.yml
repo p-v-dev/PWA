@@ -1,0 +1,52 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run tests
+        run: python -m unittest discover -s tests -v
+      - name: Build site
+        env:
+          CONTACT_WHATSAPP_NUMBER: ${{ vars.CONTACT_WHATSAPP_NUMBER }}
+          CONTACT_WHATSAPP_MESSAGE: ${{ vars.CONTACT_WHATSAPP_MESSAGE }}
+          CONTACT_INSTAGRAM: ${{ vars.CONTACT_INSTAGRAM }}
+          CONTACT_PHONE: ${{ vars.CONTACT_PHONE }}
+          CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL }}
+          CONTACT_BUSINESS_HOURS: ${{ vars.CONTACT_BUSINESS_HOURS }}
+          CONTACT_MAPS_URL: ${{ vars.CONTACT_MAPS_URL }}
+          SITE_URL: https://p-v-dev.github.io/PWA/
+        run: node build.mjs
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/configure-pages@v5
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5
